@@ -11,9 +11,17 @@
 
 {% macro fabricspark__get_columns_in_relation(relation) -%}
   {% call statement('get_columns_in_relation', fetch_result=True) %}
-      describe table extended {{ relation.include(schema=(schema is not none)) }}
+      describe table extended {{ relation.render() }}
   {% endcall %}
-  {% do return(load_result('get_columns_in_relation').table) %}
+  {% set table = load_result('get_columns_in_relation').table %}
+  {#- DIVERGENCE BEGIN: dbt-core Spark does not cast table to Column. All other adapters do it.
+      Gate on dbt_version: under dbt-core (1.x) return the raw table to match upstream behavior. -#}
+  {% if dbt_version.startswith('2.') %}
+    {% do return(sql_convert_columns_in_relation(table)) %}
+  {% else %}
+    {% do return(table) %}
+  {% endif %}
+  {#- DIVERGENCE END -#}
 {% endmacro %}
 
 {% macro fabricspark__alter_column_type(relation, column_name, new_column_type) -%}

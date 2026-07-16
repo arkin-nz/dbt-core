@@ -7,18 +7,24 @@
   {%- set target_relation = api.Relation.create(identifier=identifier,
                                                 schema=schema,
                                                 database=database,
-                                                type='table',
-                                                is_delta=(old_relation.is_delta is none or old_relation.is_delta)) -%}
+                                                type='table') -%}
 
   {{ run_hooks(pre_hooks) }}
 
   -- setup: if the target relation already exists, drop it
   -- in case if the existing and future table is delta, we want to do a
   -- create or replace table instead of dropping, so we don't have the table unavailable
-  {% set is_delta = old_relation.is_delta if old_relation is not none else config.get('file_format') == 'delta' %}
+  {% if old_relation is not none %}
+    {# Fabric Lakehouse tables default to delta; only a non-delta file_format opts out #}
+    {% set is_delta = old_relation.is_delta and config.get('file_format', 'delta') == 'delta' %}
+    {% set old_relation_type = old_relation.type %}
+  {% else %}
+    {% set is_delta = false %}
+    {% set old_relation_type = target_relation.type %}
+  {% endif %}
 
   {% if not is_delta %}
-    {{ adapter.drop_relation(target_relation.incorporate(type=old_relation.type)) }}
+    {{ adapter.drop_relation(target_relation.incorporate(type=old_relation_type)) }}
   {% endif %}
 
   -- build model

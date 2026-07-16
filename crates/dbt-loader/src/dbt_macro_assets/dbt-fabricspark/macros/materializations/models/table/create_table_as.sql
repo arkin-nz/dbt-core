@@ -3,7 +3,8 @@
     {%- if temporary -%}
       {{ create_temporary_view(relation, compiled_code) }}
     {%- else -%}      
-      {% if config.get('file_format') == 'delta' or relation.is_delta %}
+      {# Fabric Lakehouse tables default to delta, which supports create-or-replace #}
+      {% if config.get('file_format', 'delta') == 'delta' or relation.is_delta %}
         create or replace table {{ relation }}
       {% else %}
         create table {{ relation }}
