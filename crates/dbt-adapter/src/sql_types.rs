@@ -316,14 +316,14 @@ impl DefaultTypeOps {
                 _,
             ) => match adapter_type {
                 Bigquery => "int64",
-                Databricks => "bigint",
+                Databricks | Spark | Fabricspark => "bigint",
                 _ => "integer",
             },
 
             // ## convert_number_type() - Float32
             (SqlType::Real | SqlType::HalfFloat, _) => match adapter_type {
                 Bigquery => "float64",
-                Databricks => "float",
+                Databricks | Spark | Fabricspark => "float",
                 Fabric => "real",
                 _ => "float8",
             },
@@ -331,7 +331,7 @@ impl DefaultTypeOps {
             // ## convert_number_type() - Float64
             (SqlType::Double | SqlType::Float(_), _) => match adapter_type {
                 Bigquery => "float64",
-                Databricks => "double",
+                Databricks | Spark | Fabricspark => "double",
                 // Divergence: upstream has an implicit narrowing bug we fix
                 // see https://github.com/microsoft/dbt-fabric/blob/0de219082282724a789b0d1b18509d39899da8e1/dbt/adapters/fabric/fabric_adapter.py#L117
                 // https://learn.microsoft.com/en-us/sql/t-sql/data-types/float-and-real-transact-sql?view=fabric&preserve-view=true
@@ -352,8 +352,8 @@ impl DefaultTypeOps {
                 (Bigquery, 1..) => "float64",
                 (Bigquery, ..=0) => "int64",
                 (Fabric, _) => "float",
-                (Databricks, 1..) => "double",
-                (Databricks, ..=0) => "bigint",
+                (Databricks | Spark | Fabricspark, 1..) => "double",
+                (Databricks | Spark | Fabricspark, ..=0) => "bigint",
                 (_, 1..) => "float8",
                 (_, ..=0) => "integer",
             },
@@ -372,7 +372,7 @@ impl DefaultTypeOps {
             // ## convert_datetime_type()
             (SqlType::Timestamp { .. }, _) => match adapter_type {
                 Bigquery => "datetime",
-                Databricks => "timestamp",
+                Databricks | Spark | Fabricspark => "timestamp",
                 Fabric => "datetime2(6)",
                 _ => "timestamp without time zone",
             },
@@ -390,7 +390,7 @@ impl DefaultTypeOps {
             // ## convert_text_type()
             (SqlType::Varchar(..) | SqlType::Text | SqlType::Clob | SqlType::Char(_), _) => {
                 match adapter_type {
-                    Bigquery | Databricks => "string",
+                    Bigquery | Databricks | Spark | Fabricspark => "string",
                     // technically should be `varchar(N)`
                     // where `N` is based on the max length of the strings in the column
                     // but that information isn't available here
@@ -525,7 +525,7 @@ pub const fn get_field_sql_type_metadata_key(adapter_type: AdapterType) -> &'sta
         AdapterType::Databricks => todo!(),
         AdapterType::Postgres => todo!(),
         AdapterType::Salesforce => todo!(),
-        AdapterType::Spark => todo!(),
+        AdapterType::Spark | AdapterType::Fabricspark => todo!(),
         AdapterType::DuckDB => todo!(),
         AdapterType::Fdcs => todo!(),
         AdapterType::Fabric => FABRIC_METADATA_SQL_TYPE_KEY,
@@ -579,7 +579,7 @@ impl SdfSchemaBuilder {
         let metadata = field.metadata();
         let comment = match self.adapter_type {
             Bigquery => metadata.get("Description"),
-            Redshift | Databricks | Spark | DuckDB | Fdcs => {
+            Redshift | Databricks | Spark | Fabricspark | DuckDB | Fdcs => {
                 metadata.get(ARROW_FIELD_COMMENT_METADATA_KEY)
             }
             // no evidence that these drivers store comments in metadata, but just in case
@@ -620,8 +620,8 @@ impl SdfSchemaBuilder {
     pub fn build_sdf_schema(self, type_ops: &dyn TypeOps) -> AdapterResult<SdfSchema> {
         use AdapterType::*;
         match self.adapter_type {
-            Bigquery | Redshift | Databricks | Spark | DuckDB | Fdcs | Fabric | ClickHouse
-            | Exasol | Starburst | Athena | Trino | Dremio | Oracle | Datafusion => {
+            Bigquery | Redshift | Databricks | Spark | Fabricspark | DuckDB | Fdcs | Fabric
+            | ClickHouse | Exasol | Starburst | Athena | Trino | Dremio | Oracle | Datafusion => {
                 let original_fields = self.original.fields();
                 let mut sdf_fields = Vec::with_capacity(original_fields.len());
                 for field in original_fields {
@@ -944,8 +944,9 @@ pub const fn max_varchar_size(adapter_type: AdapterType) -> Option<usize> {
         // FIXME: Actual MAX is 134_217_728 - 16_777_216 is the default value
         Snowflake => Some(16_777_216),
         Redshift => Some(256),
-        Postgres | Bigquery | Databricks | Salesforce | Spark | DuckDB | Fdcs | Fabric
-        | ClickHouse | Exasol | Starburst | Athena | Trino | Dremio | Oracle | Datafusion => None,
+        Postgres | Bigquery | Databricks | Salesforce | Spark | Fabricspark | DuckDB | Fdcs
+        | Fabric | ClickHouse | Exasol | Starburst | Athena | Trino | Dremio | Oracle
+        | Datafusion => None,
     }
 }
 
@@ -955,8 +956,9 @@ pub const fn max_varbinary_size(adapter_type: AdapterType) -> Option<usize> {
         Snowflake => Some(16_777_216),
         Redshift => Some(65_535),
         // TODO: define limits for more systems
-        Postgres | Bigquery | Databricks | Salesforce | Spark | DuckDB | Fdcs | Fabric
-        | ClickHouse | Exasol | Starburst | Athena | Trino | Dremio | Oracle | Datafusion => None,
+        Postgres | Bigquery | Databricks | Salesforce | Spark | Fabricspark | DuckDB | Fdcs
+        | Fabric | ClickHouse | Exasol | Starburst | Athena | Trino | Dremio | Oracle
+        | Datafusion => None,
     }
 }
 
