@@ -1874,6 +1874,51 @@ fn missing(field: &str) -> String {
 
 // This target context is only to be used in rendering yml's
 // See: https://docs.getdbt.com/reference/dbt-jinja-functions/target
+fn fabricspark_target_context(
+    config: Box<FabricSparkDbConfig>,
+    adapter_type: String,
+) -> Result<TargetContext, String> {
+    let lakehouse_schemas = config.lakehouse_schemas.unwrap_or(false);
+    let lakehouse = if lakehouse_schemas {
+        // Schema-enabled lakehouses address relations as
+        // `lakehouse.schema.table`; the lakehouse name is required.
+        config
+            .lakehouse
+            .clone()
+            .ok_or_else(|| missing("lakehouse"))?
+    } else {
+        config.lakehouse.clone().unwrap_or_default()
+    };
+    Ok(TargetContext::Fabricspark(FabricSparkTargetEnv {
+        method: config.method.unwrap_or_else(|| "livy".to_string()),
+        endpoint: config
+            .endpoint
+            .unwrap_or_else(|| "https://api.fabric.microsoft.com/v1".to_string()),
+        workspaceid: config.workspaceid.ok_or_else(|| missing("workspaceid"))?,
+        lakehouse: lakehouse.clone(),
+        lakehouseid: config.lakehouseid.ok_or_else(|| missing("lakehouseid"))?,
+        authentication: config.authentication.unwrap_or_else(|| "CLI".to_string()),
+        __common__: CommonTargetContext {
+            database: if lakehouse_schemas {
+                lakehouse
+            } else {
+                "".to_string()
+            },
+            schema: config.schema.ok_or_else(|| missing("schema"))?,
+            type_: adapter_type,
+            threads: match config.threads {
+                Some(StringOrInteger::String(threads)) => Some(
+                    threads
+                        .parse::<u16>()
+                        .map_err(|_| "threads must be a positive integer".to_string())?,
+                ),
+                Some(StringOrInteger::Integer(threads)) => Some(threads as u16),
+                None => None,
+            },
+        },
+    }))
+}
+
 impl TryFrom<DbConfig> for TargetContext {
     type Error = String;
 
@@ -2150,47 +2195,7 @@ impl TryFrom<DbConfig> for TargetContext {
                     threads: None,
                 },
             })),
-            DbConfig::Fabricspark(config) => {
-                let lakehouse_schemas = config.lakehouse_schemas.unwrap_or(false);
-                let lakehouse = if lakehouse_schemas {
-                    // Schema-enabled lakehouses address relations as
-                    // `lakehouse.schema.table`; the lakehouse name is required.
-                    config
-                        .lakehouse
-                        .clone()
-                        .ok_or_else(|| missing("lakehouse"))?
-                } else {
-                    config.lakehouse.clone().unwrap_or_default()
-                };
-                Ok(TargetContext::Fabricspark(FabricSparkTargetEnv {
-                    method: config.method.unwrap_or_else(|| "livy".to_string()),
-                    endpoint: config
-                        .endpoint
-                        .unwrap_or_else(|| "https://api.fabric.microsoft.com/v1".to_string()),
-                    workspaceid: config.workspaceid.ok_or_else(|| missing("workspaceid"))?,
-                    lakehouse: lakehouse.clone(),
-                    lakehouseid: config.lakehouseid.ok_or_else(|| missing("lakehouseid"))?,
-                    authentication: config.authentication.unwrap_or_else(|| "CLI".to_string()),
-                    __common__: CommonTargetContext {
-                        database: if lakehouse_schemas {
-                            lakehouse
-                        } else {
-                            "".to_string()
-                        },
-                        schema: config.schema.ok_or_else(|| missing("schema"))?,
-                        type_: adapter_type,
-                        threads: match config.threads {
-                            Some(StringOrInteger::String(threads)) => {
-                                Some(threads.parse::<u16>().map_err(|_| {
-                                    "threads must be a positive integer".to_string()
-                                })?)
-                            }
-                            Some(StringOrInteger::Integer(threads)) => Some(threads as u16),
-                            None => None,
-                        },
-                    },
-                }))
-            }
+            DbConfig::Fabricspark(config) => fabricspark_target_context(config, adapter_type),
             DbConfig::Fabric(config) => {
                 let common = CommonTargetContext {
                     database: config.database.ok_or_else(|| missing("database"))?,

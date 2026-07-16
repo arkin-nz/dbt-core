@@ -122,12 +122,12 @@ impl<'a> FabricSparkAuthIR<'a> {
 pub(super) fn parse_auth<'a>(
     config: &'a AdapterConfig,
 ) -> Result<FabricSparkAuthIR<'a>, AuthError> {
-    if let Some(method) = config.get_str("method") {
-        if method != "livy" {
-            return Err(AuthError::config(
-                "'method' must be 'livy' for Fabric Lakehouse (fabricspark) profiles",
-            ));
-        }
+    if let Some(method) = config.get_str("method")
+        && method != "livy"
+    {
+        return Err(AuthError::config(
+            "'method' must be 'livy' for Fabric Lakehouse (fabricspark) profiles",
+        ));
     }
 
     let workspace_id = config.get_str("workspaceid").ok_or_else(|| {
@@ -137,79 +137,88 @@ pub(super) fn parse_auth<'a>(
         AuthError::config("'lakehouseid' is a required fabricspark configuration")
     })?;
 
-    let endpoint = config.get_str("endpoint").unwrap_or(DEFAULT_ENDPOINT);
-
-    // `authentication` (alias `auth`) selects the Entra ID credential.
-    // v1 dbt-fabricspark used `CLI` and `SPN`; the remaining values map
-    // directly onto the driver's credential kinds.
-    let authentication = config.get_str("authentication");
-    let credential = match authentication {
-        None => AzureCredential::Cli,
-        Some(auth) if auth.eq_ignore_ascii_case("cli") => AzureCredential::Cli,
-        Some(auth)
-            if auth.eq_ignore_ascii_case("spn") || auth.eq_ignore_ascii_case("client_secret") =>
-        {
-            AzureCredential::ClientSecret {
-                tenant_id: config.get_str("tenant_id").ok_or_else(|| {
-                    AuthError::config("'tenant_id' is required when authentication is 'SPN'")
-                })?,
-                client_id: config.get_str("client_id").ok_or_else(|| {
-                    AuthError::config("'client_id' is required when authentication is 'SPN'")
-                })?,
-                client_secret: config.get_str("client_secret").ok_or_else(|| {
-                    AuthError::config("'client_secret' is required when authentication is 'SPN'")
-                })?,
-            }
-        }
-        Some(auth) if auth.eq_ignore_ascii_case("default") => AzureCredential::Default,
-        Some(auth) if auth.eq_ignore_ascii_case("environment") => AzureCredential::Environment,
-        Some(auth) if auth.eq_ignore_ascii_case("managed_identity") => {
-            AzureCredential::ManagedIdentity {
-                client_id: config.get_str("client_id"),
-            }
-        }
-        Some(_) => {
-            return Err(AuthError::config(
-                "invalid 'authentication' for fabricspark: must be one of \
-[CLI, SPN, default, environment, managed_identity]",
-            ));
-        }
-    };
-
-    let mut session_params = HashMap::new();
-    if let Some(ssp) = config.get("server_side_parameters") {
-        let super::YmlValue::Mapping(ssp, _) = ssp else {
-            return Err(AuthError::config(
-                "'server_side_parameters' must be mapping",
-            ));
-        };
-        for (key, value) in ssp {
-            let super::YmlValue::String(key, _) = key else {
-                return Err(AuthError::config(
-                    "'server_side_parameters' key must be string",
-                ));
-            };
-            let value = match value {
-                super::YmlValue::String(v, _) => v.to_string(),
-                super::YmlValue::Number(v, _) => v.to_string(),
-                _ => {
-                    return Err(AuthError::config(
-                        "'server_side_parameters' value must be string or number",
-                    ));
-                }
-            };
-            session_params.insert(key.as_str(), value);
-        }
-    }
-
     Ok(FabricSparkAuthIR {
-        endpoint,
+        endpoint: config.get_str("endpoint").unwrap_or(DEFAULT_ENDPOINT),
         workspace_id,
         lakehouse_id,
-        credential,
+        credential: parse_credential(config)?,
         token_scope: config.get_str("token_scope"),
-        session_params,
+        session_params: parse_session_params(config)?,
     })
+}
+
+/// Parses `authentication` (v1 dbt-fabricspark used `CLI` and `SPN`; the
+/// remaining values map directly onto the driver's credential kinds).
+fn parse_credential<'a>(config: &'a AdapterConfig) -> Result<AzureCredential<'a>, AuthError> {
+    let Some(authentication) = config.get_str("authentication") else {
+        return Ok(AzureCredential::Cli);
+    };
+
+    if authentication.eq_ignore_ascii_case("cli") {
+        Ok(AzureCredential::Cli)
+    } else if authentication.eq_ignore_ascii_case("spn")
+        || authentication.eq_ignore_ascii_case("client_secret")
+    {
+        Ok(AzureCredential::ClientSecret {
+            tenant_id: require_spn_field(config, "tenant_id")?,
+            client_id: require_spn_field(config, "client_id")?,
+            client_secret: require_spn_field(config, "client_secret")?,
+        })
+    } else if authentication.eq_ignore_ascii_case("default") {
+        Ok(AzureCredential::Default)
+    } else if authentication.eq_ignore_ascii_case("environment") {
+        Ok(AzureCredential::Environment)
+    } else if authentication.eq_ignore_ascii_case("managed_identity") {
+        Ok(AzureCredential::ManagedIdentity {
+            client_id: config.get_str("client_id"),
+        })
+    } else {
+        Err(AuthError::config(
+            "invalid 'authentication' for fabricspark: must be one of \
+[CLI, SPN, default, environment, managed_identity]",
+        ))
+    }
+}
+
+fn require_spn_field<'a>(
+    config: &'a AdapterConfig,
+    field: &'static str,
+) -> Result<&'a str, AuthError> {
+    config.get_str(field).ok_or_else(|| {
+        AuthError::config(format!(
+            "'{field}' is required when authentication is 'SPN'"
+        ))
+    })
+}
+
+fn parse_session_params(config: &AdapterConfig) -> Result<HashMap<&str, String>, AuthError> {
+    let mut session_params = HashMap::new();
+    let Some(ssp) = config.get("server_side_parameters") else {
+        return Ok(session_params);
+    };
+    let super::YmlValue::Mapping(ssp, _) = ssp else {
+        return Err(AuthError::config(
+            "'server_side_parameters' must be mapping",
+        ));
+    };
+    for (key, value) in ssp {
+        let super::YmlValue::String(key, _) = key else {
+            return Err(AuthError::config(
+                "'server_side_parameters' key must be string",
+            ));
+        };
+        let value = match value {
+            super::YmlValue::String(v, _) => v.to_string(),
+            super::YmlValue::Number(v, _) => v.to_string(),
+            _ => {
+                return Err(AuthError::config(
+                    "'server_side_parameters' value must be string or number",
+                ));
+            }
+        };
+        session_params.insert(key.as_str(), value);
+    }
+    Ok(session_params)
 }
 
 pub(super) fn apply_connection_args(

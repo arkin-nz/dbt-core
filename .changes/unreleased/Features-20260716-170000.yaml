@@ -1,0 +1,7 @@
+kind: Features
+body: Add fabricspark adapter for Microsoft Fabric Lakehouse (Spark via the Livy API
+  with Microsoft Entra ID auth), supporting classic and schema-enabled lakehouses
+time: 2026-07-16T17:00:00.000000+12:00
+custom:
+    author: arkin-nz
+    project: dbt-fusion
