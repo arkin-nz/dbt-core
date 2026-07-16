@@ -56,6 +56,8 @@ pub enum AdapterType {
     Redshift,
     /// Spark
     Spark,
+    /// Microsoft Fabric Lakehouse (Spark via Livy)
+    Fabricspark,
     /// DuckDB
     DuckDB,
     /// Postgres
@@ -107,7 +109,7 @@ pub fn quote_char(adapter_type: AdapterType) -> char {
         Snowflake => '"',
         // https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/lexical#quoted_identifiers
         Bigquery => '`',
-        Databricks | Spark => '`',
+        Databricks | Spark | Fabricspark => '`',
         Redshift => '"',
         Postgres | Salesforce => '"',
         Fabric => '"',

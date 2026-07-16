@@ -22,6 +22,7 @@ pub mod auth_type {
     // Livy
     pub const BASIC: &str = "basic";
     pub const AWS_SIGV4: &str = "aws_sigv4";
+    pub const AZURE_TOKEN: &str = "azure_token";
 
     // Spark Connect
     pub const NONE: &str = "none";
@@ -45,9 +46,30 @@ pub mod livy {
 
     pub const SESSION_TTL: &str = "spark.livy.session_ttl";
 
+    /// Path appended to the host to form the Livy endpoint base URL
+    /// (e.g. Microsoft Fabric's `/v1/workspaces/{id}/lakehouses/{id}/livyapi/versions/2023-12-01`).
+    pub const BASE_URL: &str = "spark.livy.base_url";
+
     pub mod aws {
         pub const REGION: &str = "spark.livy.aws.region";
         pub const EMR_SERVERLESS_EXECUTION_ROLE_ARN: &str =
             "spark.livy.aws.emr_serverless.execution_role_arn";
+    }
+
+    /// Microsoft Entra ID options for [`super::auth_type::AZURE_TOKEN`].
+    pub mod azure {
+        pub const CREDENTIAL: &str = "spark.livy.azure.credential";
+        pub mod credential {
+            pub const DEFAULT: &str = "default";
+            pub const CLI: &str = "cli";
+            pub const CLIENT_SECRET: &str = "client_secret";
+            pub const ENVIRONMENT: &str = "environment";
+            pub const MANAGED_IDENTITY: &str = "managed_identity";
+        }
+
+        pub const TENANT_ID: &str = "spark.livy.azure.tenant_id";
+        pub const CLIENT_ID: &str = "spark.livy.azure.client_id";
+        pub const CLIENT_SECRET: &str = "spark.livy.azure.client_secret";
+        pub const TOKEN_SCOPE: &str = "spark.livy.azure.token_scope";
     }
 }

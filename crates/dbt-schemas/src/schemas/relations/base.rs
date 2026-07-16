@@ -544,6 +544,7 @@ pub trait BaseRelation: BaseRelationProperties + Any + Send + Sync + fmt::Debug 
             | AdapterType::Redshift
             | AdapterType::Salesforce
             | AdapterType::Spark
+            | AdapterType::Fabricspark
             | AdapterType::DuckDB
             | AdapterType::Fdcs
             | AdapterType::Fabric => (

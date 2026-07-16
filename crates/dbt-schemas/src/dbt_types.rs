@@ -56,15 +56,17 @@ impl RelationType {
                 "MANAGED" | "MANAGED_SHALLOW_CLONE" => RelationType::Table,
                 _ => panic!("unknown table type: {type_string}"),
             },
-            AdapterType::Spark => match type_string.to_uppercase().as_str() {
-                // These are the only table types Apache Spark's catalog reports
-                // (`CatalogTableType`) via `DESCRIBE TABLE EXTENDED`, identical over
-                // Thrift/Livy/Spark Connect: MANAGED, EXTERNAL, VIEW (released 3.5/4.0)
-                // https://github.com/apache/spark/blob/f0bb2e6a47d0ebda424ffd633fcea8644a597954/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/catalog/interface.scala#L1039
-                "MANAGED" | "EXTERNAL" => RelationType::Table,
-                "VIEW" => RelationType::View,
-                _ => panic!("unknown table type: {type_string}"),
-            },
+            AdapterType::Spark | AdapterType::Fabricspark => {
+                match type_string.to_uppercase().as_str() {
+                    // These are the only table types Apache Spark's catalog reports
+                    // (`CatalogTableType`) via `DESCRIBE TABLE EXTENDED`, identical over
+                    // Thrift/Livy/Spark Connect: MANAGED, EXTERNAL, VIEW (released 3.5/4.0)
+                    // https://github.com/apache/spark/blob/f0bb2e6a47d0ebda424ffd633fcea8644a597954/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/catalog/interface.scala#L1039
+                    "MANAGED" | "EXTERNAL" => RelationType::Table,
+                    "VIEW" => RelationType::View,
+                    _ => panic!("unknown table type: {type_string}"),
+                }
+            }
             _ => RelationType::from(type_string),
         }
     }
