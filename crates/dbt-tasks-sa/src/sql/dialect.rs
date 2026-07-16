@@ -30,7 +30,7 @@ pub fn sqlparser_dialect_for(adapter_type: AdapterType) -> &'static dyn Dialect 
         Fdcs => &DUCKDB,
         // Spark SQL is closest to Hive / Databricks; HiveDialect is a safe
         // baseline for tokenization (string/comment forms match).
-        Spark => &HIVE,
+        Spark | Fabricspark => &HIVE,
         Fabric => &MSSQL,
         ClickHouse => &CLICKHOUSE,
         // No close sqlparser match — generic SQL tokenizer is permissive enough

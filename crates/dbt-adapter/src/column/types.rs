@@ -203,7 +203,7 @@ impl ColumnStatic {
                 "INTEGER" => "INT64",
                 _ => column_type,
             },
-            AdapterType::Databricks | AdapterType::Spark => {
+            AdapterType::Databricks | AdapterType::Spark | AdapterType::Fabricspark => {
                 match column_type.to_uppercase().as_str() {
                     "LONG" => "BIGINT",
                     _ => column_type,
@@ -1049,7 +1049,7 @@ impl Column {
     /// Reference: https://github.com/databricks/dbt-databricks/blob/822b105b15e644676d9e1f47cbfd765cd4c1541f/dbt/adapters/databricks/column.py#L167-L179
     pub fn render_for_create(&self) -> String {
         match self._adapter_type {
-            AdapterType::Databricks | AdapterType::Spark => {
+            AdapterType::Databricks | AdapterType::Spark | AdapterType::Fabricspark => {
                 let mut s = format!("{} {}", self.quoted(), self.data_type());
                 if self._nullable == Some(false) {
                     s.push_str(" NOT NULL");

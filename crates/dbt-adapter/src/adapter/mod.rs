@@ -682,6 +682,7 @@ impl Adapter {
                 | AdapterType::Postgres
                 | AdapterType::Redshift
                 | AdapterType::Spark
+                | AdapterType::Fabricspark
                 | AdapterType::Databricks
                 | AdapterType::DuckDB => {
                     format!("({expr1} IS NOT DISTINCT FROM {expr2})")
@@ -3662,7 +3663,7 @@ impl Adapter {
                     iter.next_arg::<Option<&str>>()?
                         .unwrap_or_else(|| match self.adapter_type() {
                             AdapterType::Databricks => DEFAULT_DATABRICKS_DATABASE,
-                            AdapterType::Spark => DEFAULT_SPARK_DATABASE,
+                            AdapterType::Spark | AdapterType::Fabricspark => DEFAULT_SPARK_DATABASE,
                             _ => "",
                         });
                 let schema = iter.next_arg::<Option<&str>>()?.unwrap_or("");

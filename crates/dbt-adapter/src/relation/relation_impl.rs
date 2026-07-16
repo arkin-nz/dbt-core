@@ -535,7 +535,7 @@ impl BaseRelation for Relation {
             // It might be relation under a `information_schema` schema or a `system` catalog
             // For example, system.billing.list_prices or [database].information_schema.tables
             // are both system tables
-            Databricks | Spark => {
+            Databricks | Spark | Fabricspark => {
                 self.path
                     .database
                     .as_ref()
@@ -662,7 +662,7 @@ impl BaseRelation for Relation {
 
     fn is_hive_metastore(&self) -> bool {
         match self.adapter_type {
-            AdapterType::Databricks | AdapterType::Spark => {
+            AdapterType::Databricks | AdapterType::Spark | AdapterType::Fabricspark => {
                 // Match Python dbt-databricks semantics:
                 // def is_hive_metastore(database: Optional[str], temporary: Optional[bool] = False) -> bool:
                 //     return (database is None or database.lower() == "hive_metastore") and not temporary
@@ -688,7 +688,7 @@ impl BaseRelation for Relation {
 
     fn set_is_delta(&mut self, is_delta: Option<bool>) {
         match self.adapter_type {
-            AdapterType::Databricks | AdapterType::Spark => {
+            AdapterType::Databricks | AdapterType::Spark | AdapterType::Fabricspark => {
                 self.is_delta = is_delta.unwrap_or(self.is_delta);
             }
             _ => {}

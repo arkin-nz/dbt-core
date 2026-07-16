@@ -61,6 +61,7 @@ mod tests {
         AdapterType::Postgres,
         AdapterType::DuckDB,
         AdapterType::Spark,
+        AdapterType::Fabricspark,
         AdapterType::Fabric,
         AdapterType::ClickHouse,
         AdapterType::Trino,

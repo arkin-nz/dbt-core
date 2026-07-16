@@ -69,7 +69,10 @@ pub fn compare_sql(actual: &str, expected: &str, adapter_type: AdapterType) -> A
     // Databricks/Spark: dbt tmp view definitions may differ in TEMPORARY vs non-temporary and
     // qualified vs unqualified view naming across runners/recorders. We treat these as equivalent
     // only for dbt tmp relations, and only when BOTH sides match the pattern.
-    if matches!(adapter_type, AdapterType::Databricks | AdapterType::Spark) {
+    if matches!(
+        adapter_type,
+        AdapterType::Databricks | AdapterType::Spark | AdapterType::Fabricspark
+    ) {
         if let (Some(actual_canon), Some(expected_canon)) = (
             canonicalize_databricks_tmp_view_definition(&actual),
             canonicalize_databricks_tmp_view_definition(&expected),

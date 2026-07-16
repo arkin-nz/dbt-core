@@ -230,6 +230,7 @@ pub fn infer_seed_column_name_strategy(
             AdapterType::Bigquery
             | AdapterType::Databricks
             | AdapterType::Spark
+            | AdapterType::Fabricspark
             | AdapterType::Fabric,
         ) => InferColumnNameStrategy::Verbatim,
         (false, AdapterType::ClickHouse) => InferColumnNameStrategy::Verbatim,

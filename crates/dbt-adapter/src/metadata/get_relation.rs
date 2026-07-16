@@ -61,9 +61,9 @@ pub fn get_relation(
         AdapterType::Salesforce => {
             salesforce_get_relation(adapter, state, ctx, conn, database, schema, identifier)
         }
-        AdapterType::Spark => {
-            spark_get_relation(adapter, state, ctx, conn, schema, identifier, token)
-        }
+        AdapterType::Spark | AdapterType::Fabricspark => spark_get_relation(
+            adapter, state, ctx, conn, database, schema, identifier, token,
+        ),
         AdapterType::DuckDB => duckdb_get_relation(
             adapter, state, ctx, conn, database, schema, identifier, token,
         ),
@@ -334,11 +334,13 @@ fn parse_describe_table_extended(
     Ok((relation_type, is_delta, metadata_map))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spark_get_relation(
     adapter: &AdapterImpl,
     state: &State,
     ctx: &QueryCtx,
     conn: &mut dyn Connection,
+    database: &str,
     schema: &str,
     identifier: &str,
     token: CancellationToken,
@@ -353,9 +355,18 @@ fn spark_get_relation(
     } else {
         identifier.to_string()
     };
+    // Spark relations are usually 2-part, but schema-enabled Fabric
+    // lakehouses carry the lakehouse name in `database` (3-part).
+    let query_prefix = if database.is_empty() {
+        String::new()
+    } else if adapter.quoting().database {
+        format!("{}.", adapter.quote(database))
+    } else {
+        format!("{database}.")
+    };
 
     // Spark 3.5 does not support AS JSON
-    let sql = format!("DESCRIBE TABLE EXTENDED {query_schema}.{query_identifier}");
+    let sql = format!("DESCRIBE TABLE EXTENDED {query_prefix}{query_schema}.{query_identifier}");
     let batch = adapter
         .engine()
         .execute(Some(state), conn, ctx, &sql, token);
@@ -376,8 +387,8 @@ fn spark_get_relation(
 
     Ok(Some(Box::new(
         Relation::new(
-            AdapterType::Spark,
-            None::<String>,
+            adapter.adapter_type(),
+            (!database.is_empty()).then(|| database.to_string()),
             schema.to_string(),
             identifier.to_string(),
         )
@@ -429,7 +440,7 @@ fn databricks_get_relation(
     // - Spark adapter: skip version check (no DBR version concept)
     // See also: https://github.com/databricks/dbt-databricks/blob/822b105b15e644676d9e1f47cbfd765cd4c1541f/dbt/adapters/databricks/impl.py#L423
     let dbr_version = match adapter.adapter_type() {
-        AdapterType::Spark => None,
+        AdapterType::Spark | AdapterType::Fabricspark => None,
         AdapterType::Databricks => Some(DatabricksMetadataAdapter::get_engine_version(
             adapter,
             ctx,

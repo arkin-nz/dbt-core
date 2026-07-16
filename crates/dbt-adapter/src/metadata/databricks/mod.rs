@@ -232,7 +232,7 @@ impl DatabricksMetadataAdapter {
                 let version_str = values.value(0);
                 extract_dbr_version(version_str)
             }
-            AdapterType::Spark => {
+            AdapterType::Spark | AdapterType::Fabricspark => {
                 let sql = "SELECT version() AS version";
                 let (_response, table) =
                     adapter.execute(None, conn, Some(ctx), sql, false, true, None, None, token)?;
@@ -915,7 +915,7 @@ impl MetadataAdapter for DatabricksMetadataAdapter {
                             .map(|v| v < EngineVersion::Full(16, 2))
                             .unwrap_or(false)
                 }
-                AdapterType::Spark => engine_version
+                AdapterType::Spark | AdapterType::Fabricspark => engine_version
                     .map(|v| v < EngineVersion::Full(4, 0))
                     .unwrap_or(false),
                 _ => unreachable!(),
@@ -929,6 +929,12 @@ impl MetadataAdapter for DatabricksMetadataAdapter {
                     );
                     format!("{schema}.{identifier}")
                 }
+                // Schema-enabled Fabric lakehouses carry the lakehouse name in
+                // `database` (3-part naming); classic lakehouses leave it empty.
+                AdapterType::Fabricspark if database.is_empty() => {
+                    format!("{schema}.{identifier}")
+                }
+                AdapterType::Fabricspark => format!("{database}.{schema}.{identifier}"),
                 AdapterType::Databricks => format!("{database}.{schema}.{identifier}"),
                 _ => unreachable!(),
             };

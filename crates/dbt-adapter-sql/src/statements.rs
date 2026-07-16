@@ -19,6 +19,7 @@ pub fn is_update_statement(sql: &str, adapter_type: AdapterType) -> bool {
         | AdapterType::Postgres
         | AdapterType::Salesforce
         | AdapterType::Spark
+        | AdapterType::Fabricspark
         | AdapterType::DuckDB
         | AdapterType::Fabric
         | AdapterType::Exasol

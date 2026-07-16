@@ -25,7 +25,7 @@ impl ColumnBuilder {
         match self.adapter_type {
             Snowflake => Ok(Self::build_snowflake(field, type_ops)),
             Bigquery => Ok(Self::build_bigquery(field, type_ops)),
-            Databricks | Spark => Ok(Self::build_databricks(field, type_ops)),
+            Databricks | Spark | Fabricspark => Ok(Self::build_databricks(field, type_ops)),
             Redshift => Ok(Self::build_redshift(field, type_ops)),
             Postgres | Salesforce | DuckDB | Fdcs => Ok(Self::build_postgres_like(field, type_ops)),
             Fabric => Ok(Self::build_fabric(field, type_ops)),
@@ -93,7 +93,7 @@ impl ColumnBuilder {
                 numeric_precision,
                 numeric_scale,
             ),
-            Databricks | Spark => Column::new(
+            Databricks | Spark | Fabricspark => Column::new(
                 self.adapter_type,
                 name,
                 dtype,

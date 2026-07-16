@@ -233,6 +233,13 @@ impl ProfileSetup {
                 };
                 todo!("setup_spark_profile")
             }
+            AdapterType::Fabricspark => {
+                let _fabricspark_config = match existing_config {
+                    Some(DbConfig::Fabricspark(config)) => Some(config),
+                    _ => None,
+                };
+                todo!("setup_fabricspark_profile")
+            }
             AdapterType::Salesforce => {
                 let _salesforce_config = match existing_config {
                     Some(DbConfig::Salesforce(config)) => Some(config),
