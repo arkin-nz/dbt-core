@@ -9,19 +9,24 @@
   {% do return(load_result('get_columns_in_relation_raw').table) %}
 {% endmacro %}
 
+{#- dbt Fusion (core v2 and later) expects Column objects from
+    get_columns_in_relation, while dbt-core 1.x expects the raw agate table.
+    Encapsulated here so the capability check lives in exactly one place and
+    compares the major version numerically rather than by string prefix. -#}
+{% macro fabricspark__requires_column_objects() %}
+  {% do return((dbt_version.split('.')[0] | int) >= 2) %}
+{% endmacro %}
+
 {% macro fabricspark__get_columns_in_relation(relation) -%}
   {% call statement('get_columns_in_relation', fetch_result=True) %}
       describe table extended {{ relation.render() }}
   {% endcall %}
   {% set table = load_result('get_columns_in_relation').table %}
-  {#- DIVERGENCE BEGIN: dbt-core Spark does not cast table to Column. All other adapters do it.
-      Gate on dbt_version: under dbt-core (1.x) return the raw table to match upstream behavior. -#}
-  {% if dbt_version.startswith('2.') %}
+  {% if fabricspark__requires_column_objects() %}
     {% do return(sql_convert_columns_in_relation(table)) %}
   {% else %}
     {% do return(table) %}
   {% endif %}
-  {#- DIVERGENCE END -#}
 {% endmacro %}
 
 {% macro fabricspark__alter_column_type(relation, column_name, new_column_type) -%}

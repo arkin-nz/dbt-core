@@ -1390,4 +1390,42 @@ mod tests {
         assert_eq!(convert_text_type(Snowflake), "text");
         assert_eq!(convert_text_type(Redshift), "text");
     }
+
+    #[test]
+    fn test_convert_types_for_spark_adapters() {
+        // Regression test: seeds previously emitted PostgreSQL types (text,
+        // float8, timestamp without time zone) for Spark, which Spark SQL
+        // rejects at CREATE TABLE. Spark and Fabricspark must map to Spark
+        // SQL types.
+        for adapter_type in [Spark, Fabricspark] {
+            // text -> string
+            assert_eq!(convert_type(&DataType::Utf8, adapter_type), "string");
+            // integral -> bigint
+            assert_eq!(convert_type(&DataType::Int32, adapter_type), "bigint");
+            assert_eq!(convert_type(&DataType::Int64, adapter_type), "bigint");
+            // floating point -> double (float for 32-bit)
+            assert_eq!(convert_type(&DataType::Float64, adapter_type), "double");
+            assert_eq!(convert_type(&DataType::Float32, adapter_type), "float");
+            // decimals follow the Databricks coercion rules
+            assert_eq!(
+                convert_type(&DataType::Decimal128(10, 2), adapter_type),
+                "double"
+            );
+            assert_eq!(
+                convert_type(&DataType::Decimal32(10, 0), adapter_type),
+                "bigint"
+            );
+            // datetime -> timestamp (not "timestamp without time zone")
+            assert_eq!(
+                convert_type(
+                    &DataType::Timestamp(TimeUnit::Microsecond, None),
+                    adapter_type
+                ),
+                "timestamp"
+            );
+            // boolean and date use the Spark-compatible defaults
+            assert_eq!(convert_type(&DataType::Boolean, adapter_type), "boolean");
+            assert_eq!(convert_type(&DataType::Date64, adapter_type), "date");
+        }
+    }
 }
