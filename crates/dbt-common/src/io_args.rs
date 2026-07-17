@@ -650,7 +650,10 @@ impl EvalArgsBuilder {
         if !supported && !skip {
             #[cfg(debug_assertions)]
             {
-                println!(
+                // stderr, not stdout: this fires for every invocation of adapters
+                // without static analysis and must not corrupt machine-readable
+                // output (e.g. --output json consumed by IDE integrations)
+                eprintln!(
                     "debug:warning=static analysis for adapter: {:?} is disabled",
                     adapter_type
                 );
