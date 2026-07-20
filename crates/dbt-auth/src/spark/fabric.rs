@@ -87,7 +87,7 @@ impl<'a> FabricSparkAuthIR<'a> {
 
         builder.with_named_option(spark::AUTH_TYPE, spark::auth_type::AZURE_TOKEN)?;
         let credential = match self.credential {
-            AzureCredential::Cli => spark::livy::azure::credential::CLI,
+            AzureCredential::Cli => spark::livy::azure::credential::AZ_CLI,
             AzureCredential::Default => spark::livy::azure::credential::DEFAULT,
             AzureCredential::Environment => spark::livy::azure::credential::ENVIRONMENT,
             AzureCredential::ManagedIdentity { client_id } => {
@@ -104,7 +104,7 @@ impl<'a> FabricSparkAuthIR<'a> {
                 builder.with_named_option(spark::livy::azure::TENANT_ID, tenant_id)?;
                 builder.with_named_option(spark::livy::azure::CLIENT_ID, client_id)?;
                 builder.with_named_option(spark::livy::azure::CLIENT_SECRET, client_secret)?;
-                spark::livy::azure::credential::CLIENT_SECRET
+                spark::livy::azure::credential::SERVICE_PRINCIPAL
             }
         };
         builder.with_named_option(spark::livy::azure::CREDENTIAL, credential)?;
@@ -265,7 +265,7 @@ mod tests {
         );
         assert_eq!(
             other_option_value(&builder, spark::livy::azure::CREDENTIAL),
-            Some(spark::livy::azure::credential::CLI)
+            Some(spark::livy::azure::credential::AZ_CLI)
         );
         assert_eq!(
             other_option_value(&builder, spark::TRANSPORT_API),
@@ -288,7 +288,7 @@ mod tests {
 
         assert_eq!(
             other_option_value(&builder, spark::livy::azure::CREDENTIAL),
-            Some(spark::livy::azure::credential::CLIENT_SECRET)
+            Some(spark::livy::azure::credential::SERVICE_PRINCIPAL)
         );
         assert_eq!(
             other_option_value(&builder, spark::livy::azure::TENANT_ID),

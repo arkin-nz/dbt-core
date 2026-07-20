@@ -59,12 +59,13 @@ pub mod livy {
     /// Microsoft Entra ID options for [`super::auth_type::AZURE_TOKEN`].
     pub mod azure {
         pub const CREDENTIAL: &str = "spark.livy.azure.credential";
+        /// Credential kind names match the MSSQL driver's `fedauth` values.
         pub mod credential {
-            pub const DEFAULT: &str = "default";
-            pub const CLI: &str = "cli";
-            pub const CLIENT_SECRET: &str = "client_secret";
-            pub const ENVIRONMENT: &str = "environment";
-            pub const MANAGED_IDENTITY: &str = "managed_identity";
+            pub const DEFAULT: &str = "ActiveDirectoryDefault";
+            pub const AZ_CLI: &str = "ActiveDirectoryAzCli";
+            pub const SERVICE_PRINCIPAL: &str = "ActiveDirectoryServicePrincipal";
+            pub const ENVIRONMENT: &str = "ActiveDirectoryEnvironment";
+            pub const MANAGED_IDENTITY: &str = "ActiveDirectoryManagedIdentity";
         }
 
         pub const TENANT_ID: &str = "spark.livy.azure.tenant_id";
