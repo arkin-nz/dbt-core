@@ -1,0 +1,52 @@
+name: Windows build (fork)
+
+# Builds an unsigned dbt.exe from this branch for testing on Windows.
+# Mirrors the x86_64-pc-windows-msvc leg of release-v2.yml.
+
+on:
+  push:
+    branches:
+      - windows-build
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 300
+    env:
+      CARGO_INCREMENTAL: 0
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Fixup Git
+        run: |
+          git config --global core.autocrlf false
+          git config --system core.longpaths true
+
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install Protocol Buffer Compiler
+        run: |
+          PB_VERSION="29.4"
+          curl -LsSf "https://github.com/protocolbuffers/protobuf/releases/download/v$PB_VERSION/protoc-$PB_VERSION-win64.zip" -o protoc.zip
+          unzip -o protoc.zip -d "$RUNNER_TEMP/protoc"
+          echo "$RUNNER_TEMP/protoc/bin" >> "$GITHUB_PATH"
+
+      - name: Build dbt
+        run: cargo build --release --locked --bin dbt --target x86_64-pc-windows-msvc
+
+      - name: Smoke test
+        run: ./target/x86_64-pc-windows-msvc/release/dbt.exe --version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dbt-windows-x86_64-${{ github.sha }}
+          path: target/x86_64-pc-windows-msvc/release/dbt.exe
+          retention-days: 30
